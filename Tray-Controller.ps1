@@ -1,6 +1,6 @@
 # Downloads Organizer - Copyright (c) 2026 fmpanggabean
 # Licensed under CC BY-NC-SA 4.0 (attribution required, non-commercial, share-alike)
-# Original project: https://github.com/fmpanggabean/DownloadsOrganizer
+# Original project: https://github.com/fmpanggabean/download-organizer
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 
 # single instance
@@ -76,7 +76,7 @@ $miIndex.add_Click({
     $i = Join-Path $env:USERPROFILE 'Downloads\index.html'
     if (Test-Path $i) { Start-Process $i }
 })
-$miAbout.add_Click({ Start-Process 'https://github.com/fmpanggabean/DownloadsOrganizer' })
+$miAbout.add_Click({ Start-Process 'https://github.com/fmpanggabean/download-organizer' })
 $miExit.add_Click({
     Stop-Organizer
     $tray.Visible = $false

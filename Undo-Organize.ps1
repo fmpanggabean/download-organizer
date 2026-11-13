@@ -1,6 +1,6 @@
 # Downloads Organizer - Copyright (c) 2026 fmpanggabean
 # Licensed under CC BY-NC-SA 4.0 (attribution required, non-commercial, share-alike)
-# Original project: https://github.com/fmpanggabean/DownloadsOrganizer
+# Original project: https://github.com/fmpanggabean/download-organizer
 param([int]$Last = 0)  # 0 = undo everything in the log; N = undo the last N moves
 $log = Join-Path $PSScriptRoot 'moves.csv'
 if (-not (Test-Path $log)) { 'No log.'; return }
