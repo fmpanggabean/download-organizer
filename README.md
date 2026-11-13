@@ -73,4 +73,18 @@ If you delete `moves.csv`, sorting still works but you lose the ability to undo 
 
 ## License
 
-MIT
+Copyright (c) 2026 fmpanggabean
+
+Licensed under [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)](https://creativecommons.org/licenses/by-nc-sa/4.0/). Full text in [LICENSE](LICENSE).
+
+In plain terms, you may:
+
+- use, copy and **modify** this tool for free
+
+As long as you:
+
+- **give credit** to the original author, link to the license, and indicate what you changed (so a modified copy can't be passed off as the original or as your own work)
+- **share alike**: distribute your modified version under this same license
+- **don't use it commercially**: no selling it, and no charging for it or for a product built on it
+
+This summary is not legal advice; the LICENSE file is what applies.
