@@ -1,3 +1,5 @@
+# Generated at runtime - contain personal file paths, never commit
+src/moves.csv
 moves.csv
 index.csv
 index.html
