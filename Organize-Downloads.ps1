@@ -1,0 +1,115 @@
+param(
+    [string]$Root = (Join-Path $env:USERPROFILE 'Downloads'),
+    [switch]$Once   # sort what's there + rebuild index, then exit (no watching)
+)
+
+$LogFile = Join-Path $PSScriptRoot 'moves.csv'
+$Partial = '.crdownload','.part','.tmp','.download','.opdownload','.partial'
+
+$Map = [ordered]@{
+    Images      = '.jpg .jpeg .png .gif .bmp .webp .svg .tif .tiff .heic .ico .raw'
+    Documents   = '.pdf .doc .docx .xls .xlsx .ppt .pptx .txt .rtf .odt .ods .csv .md .epub .pages'
+    Videos      = '.mp4 .mkv .avi .mov .wmv .flv .webm .m4v'
+    Audio       = '.mp3 .wav .flac .aac .ogg .m4a .wma'
+    Archives    = '.zip .rar .7z .tar .gz .bz2 .xz .iso'
+    Installers  = '.exe .msi .msix .appx .apk .dmg'
+    Code        = '.py .js .ts .json .html .css .ps1 .bat .cmd .sh .cs .cpp .c .java .xml .yml .yaml .sql'
+}
+$ExtToCat = @{}
+foreach ($cat in $Map.Keys) { foreach ($e in $Map[$cat].Split(' ')) { $ExtToCat[$e] = $cat } }
+$Categories = @($Map.Keys) + 'Other'
+$IndexNames = 'index.csv','index.html'
+
+function Get-Category($file) {
+    $c = $ExtToCat[$file.Extension.ToLower()]
+    if ($c) { $c } else { 'Other' }
+}
+
+function Test-Ready($path) {
+    try { $s = [IO.File]::Open($path,'Open','Read','None'); $s.Close(); $true } catch { $false }
+}
+
+function Move-Incoming {
+    Get-ChildItem -LiteralPath $Root -File -ErrorAction SilentlyContinue | ForEach-Object {
+        $f = $_
+        if ($f.Attributes -band ([IO.FileAttributes]::Hidden -bor [IO.FileAttributes]::System)) { return }
+        if ($IndexNames -contains $f.Name) { return }
+        if ($Partial -contains $f.Extension.ToLower()) { return }
+        if (((Get-Date) - $f.LastWriteTime).TotalSeconds -lt 3) { return }  # still being written
+        if (-not (Test-Ready $f.FullName)) { return }
+
+        $destDir = Join-Path $Root (Get-Category $f)
+        New-Item -ItemType Directory -Force -Path $destDir | Out-Null
+        $dest = Join-Path $destDir $f.Name
+        $i = 1
+        while (Test-Path -LiteralPath $dest) {
+            $dest = Join-Path $destDir ('{0} ({1}){2}' -f $f.BaseName, $i, $f.Extension)
+            $i++
+        }
+        try {
+            Move-Item -LiteralPath $f.FullName -Destination $dest -ErrorAction Stop
+            [pscustomobject]@{ Time = (Get-Date -f s); From = $f.FullName; To = $dest } |
+                Export-Csv -Path $LogFile -Append -NoTypeInformation -Encoding UTF8
+        } catch { }
+    }
+}
+
+function Update-Index {
+    $rows = foreach ($cat in $Categories) {
+        $dir = Join-Path $Root $cat
+        if (Test-Path -LiteralPath $dir) {
+            Get-ChildItem -LiteralPath $dir -File -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+                [pscustomobject]@{
+                    Name     = $_.Name
+                    Category = $cat
+                    Type     = $_.Extension.TrimStart('.').ToLower()
+                    SizeKB   = [math]::Round($_.Length / 1KB, 1)
+                    Added    = $_.CreationTime.ToString('yyyy-MM-dd HH:mm')
+                    Path     = $_.FullName
+                }
+            }
+        }
+    }
+    $rows = @($rows | Sort-Object Added -Descending)
+    $rows | Export-Csv -Path (Join-Path $Root 'index.csv') -NoTypeInformation -Encoding UTF8
+
+    $enc = { param($s) [System.Net.WebUtility]::HtmlEncode([string]$s) }
+    $body = ($rows | ForEach-Object {
+        $href = ([Uri]$_.Path).AbsoluteUri
+        "<tr><td><a href=`"$href`">$(& $enc $_.Name)</a></td><td>$($_.Category)</td><td>$(& $enc $_.Type)</td><td>$($_.SizeKB)</td><td>$($_.Added)</td></tr>"
+    }) -join "`n"
+    $html = @"
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Downloads index</title>
+<style>body{font:14px Segoe UI,sans-serif;margin:2em}input{padding:6px;width:300px;margin-bottom:1em}
+table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:4px 10px;border-bottom:1px solid #ddd}th{cursor:pointer;background:#f3f3f3}</style></head>
+<body><h2>Downloads index ($($rows.Count) files, updated $(Get-Date -f 'yyyy-MM-dd HH:mm'))</h2>
+<input id="q" placeholder="Filter..." oninput="f()">
+<table id="t"><thead><tr><th>Name</th><th>Category</th><th>Type</th><th>Size (KB)</th><th>Added</th></tr></thead><tbody>
+$body
+</tbody></table>
+<script>
+function f(){var q=document.getElementById('q').value.toLowerCase();
+document.querySelectorAll('#t tbody tr').forEach(r=>r.style.display=r.textContent.toLowerCase().includes(q)?'':'none')}
+document.querySelectorAll('th').forEach((h,i)=>h.onclick=()=>{var b=document.querySelector('#t tbody'),
+rs=[...b.rows].sort((a,c)=>a.cells[i].textContent.localeCompare(c.cells[i].textContent,undefined,{numeric:true}));
+if(h.d){rs.reverse()}h.d=!h.d;rs.forEach(r=>b.appendChild(r))});
+</script></body></html>
+"@
+    Set-Content -Path (Join-Path $Root 'index.html') -Value $html -Encoding UTF8
+}
+
+function Sweep { Move-Incoming; Update-Index }
+
+Sweep
+if ($Once) { return }
+
+$fsw = New-Object IO.FileSystemWatcher $Root
+$fsw.IncludeSubdirectories = $false
+$fsw.NotifyFilter = 'FileName, LastWrite'
+$fsw.EnableRaisingEvents = $true
+while ($true) {
+    $r = $fsw.WaitForChanged('All', 60000)   # also sweeps every 60s as a safety net
+    if (-not $r.TimedOut -and ($IndexNames -contains $r.Name)) { continue }
+    Start-Sleep -Seconds 4                   # let downloads finish / be renamed
+    Sweep
+}
