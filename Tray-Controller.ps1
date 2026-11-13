@@ -1,3 +1,6 @@
+# Downloads Organizer - Copyright (c) 2026 fmpanggabean
+# Licensed under CC BY-NC-SA 4.0 (attribution required, non-commercial, share-alike)
+# Original project: https://github.com/fmpanggabean/DownloadsOrganizer
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 
 # single instance
@@ -46,6 +49,7 @@ $null     = $menu.Items.Add('-')
 $miFolder = $menu.Items.Add('Open Downloads')
 $miIndex  = $menu.Items.Add('Open index.html')
 $null     = $menu.Items.Add('-')
+$miAbout  = $menu.Items.Add('About: Downloads Organizer by fmpanggabean')
 $miExit   = $menu.Items.Add('Exit')
 $tray.ContextMenuStrip = $menu
 
@@ -72,6 +76,7 @@ $miIndex.add_Click({
     $i = Join-Path $env:USERPROFILE 'Downloads\index.html'
     if (Test-Path $i) { Start-Process $i }
 })
+$miAbout.add_Click({ Start-Process 'https://github.com/fmpanggabean/DownloadsOrganizer' })
 $miExit.add_Click({
     Stop-Organizer
     $tray.Visible = $false
